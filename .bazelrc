@@ -1,0 +1,34 @@
+# Import bazelrc presets
+import %workspace%/tools/preset.bazelrc
+
+# Don’t want to push a rules author to update their deps if not needed.
+# https://bazel.build/reference/command-line-reference#flag--check_direct_dependencies
+# https://bazelbuild.slack.com/archives/C014RARENH0/p1691158021917459?thread_ts=1691156601.420349&cid=C014RARENH0
+common --config=ruleset
+
+# Ensure that the MODULE.bazel.lock file is complete and committed.
+# This is an important security measure: it ensures that developers on the
+# same rule set download dependencies at the same versions with the same bits.
+# This setting does not affect modules that depend on this module.
+#
+# When updating dependencies, use --lockfile_mode=refresh, for example:
+#     bazel mod tidy --lockfile_mode=refresh
+#
+# When testing different versions of Bazel, use --lockfile_mode=update or
+# --lockfile_mode=off. The lock file format changes over time, and different
+# versions of Bazel may expect different syntax. Bazel also implicitly requires
+# some modules, and different versions have different dependencies, which
+# also affects the contents of the lock file.
+common:ci --lockfile_mode=update
+
+# project-specific settings
+startup --windows_enable_symlinks
+# workaround for bazel8 error when --enable_workspace and --enable_bzlmod=false
+common --incompatible_autoload_externally=
+
+# Keep the disk cache out of Bazel's own output base hierarchy.
+common:ci --disk_cache=~/.cache/bazel/disk_cache
+test:ci --test_env=XDG_CACHE_HOME
+
+# Load user-specific settings, if any
+try-import %workspace%/.bazelrc.user
