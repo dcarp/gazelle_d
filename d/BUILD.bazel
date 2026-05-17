@@ -3,15 +3,22 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "d",
     srcs = ["d.go"],
+    data = [
+        "@rules_d//d:dub",
+        "@rules_d//dub/selections_lock:generate_build_file",
+        "@rules_d//dub/selections_lock:generate_selections_lock",
+    ],
     importpath = "github.com/dcarp/gazelle_d/d",
     visibility = ["//visibility:public"],
     deps = [
+        "@com_github_bazelbuild_buildtools//build",
         "@gazelle//config",
         "@gazelle//label",
         "@gazelle//language",
         "@gazelle//repo",
         "@gazelle//resolve",
         "@gazelle//rule",
+        "@rules_go//go/runfiles",
     ],
 )
 
@@ -20,6 +27,7 @@ go_test(
     srcs = ["d_test.go"],
     embed = [":d"],
     deps = [
+        "@com_github_bazelbuild_buildtools//build",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//rule",

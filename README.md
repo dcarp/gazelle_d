@@ -10,11 +10,18 @@ The extension discovers D source files and generates:
 - `d_proto_library` targets for generated `proto_library` targets.
 - `dub_lock_dependencies` targets for DUB dependency lock files.
 
-When a package contains `dub.json`, Gazelle uses the DUB recipe to choose
-target names, source roots, import paths, versions, and platform libraries.
-This supports DUB's default `source/` and `src/` layouts, including packages
-that define a static library at the repository root and executables under
-nested example or test packages.
+When a package contains `dub.json` or `dub.sdl`, Gazelle invokes rules_d's
+DUB binary as `dub convert --format=json --stdout`. The generated `d_library`
+and `d_binary` rules are derived from DUB's canonical recipe JSON, including
+target names, target types, source files, source paths, import paths, versions,
+libraries, linker flags, and registry dependencies. JSON and SDL recipes
+therefore follow DUB's own interpretation instead of a separate Bazel-side
+manifest parser.
+
+Gazelle emits one D target for the root recipe and one for each
+`subPackages[]` entry. Plain DUB dependency keys are treated as external
+`@dub//...` labels, while qualified subpackage keys such as `root:extra` become
+local labels such as `:extra`.
 
 At the repository root, Gazelle emits a manual `dub_lock_dependencies` target
 named `dub_dependencies`. Its `srcs` contain all discovered `dub.json`,
