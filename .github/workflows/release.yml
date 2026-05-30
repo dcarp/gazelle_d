@@ -1,0 +1,73 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Git tag to publish to the Bazel Central Registry"
+        required: true
+        type: string
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          external-cache: true
+          repository-cache: true
+          cache-save: true
+      - name: "Build & Test"
+        shell: bash
+        run: bazel test --config=ci //...
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: j178/prek-action@bdca6f102f98e2b4c7029491a53dfd366469e33d # v2.0.4
+  release:
+    needs: [build, pre-commit]
+    uses: bazel-contrib/.github/.github/workflows/release_ruleset.yaml@v7.6.0 # renovate:ignore 5ab8fc4c23cb13783fad499e8bd865fd9f6d669
+    with:
+      tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+      release_files: "gazelle_d-*.tar.gz"
+      bazel_test_command: "bazel test --config=ci //..."
+      draft: true
+      prerelease: false
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+  publish-to-bcr:
+    needs: [release]
+    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@v1.2.0 # renovate:ignore 0a23c53c2baffdaf2ce8dd23c2c0e45eb3b79093
+    with:
+      tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+      registry_fork: dcarp/bazel-central-registry
+      draft: false
+      attest: true
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    secrets:
+      publish_token: ${{ secrets.BCR_PUBLISH_TOKEN }}
+  publish-release:
+    needs: [publish-to-bcr]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+        run: gh release edit "${TAG_NAME}" --draft=false --repo "${{ github.repository }}"
