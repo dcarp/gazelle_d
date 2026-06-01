@@ -6,5 +6,7 @@ tasks:
     name: "Build and test"
     platform: ${{ platform }}
     bazel: ${{ bazel }}
+    build_targets:
+      - "@gazelle_d//d:d"
     test_targets:
-      - "//..."
+      - "@gazelle_d//d:d_test"
